@@ -85,7 +85,7 @@ time.sleep(5)
 ##################### 
 
 
-wallet_rpc_proc=subprocess.Popen(haven_wallet_rpc_path+' '+haven_wallet_cmd_options+' --password "" --log-level 2 --disable-rpc-login --rpc-bind-ip 127.0.0.1 --rpc-bind-port '+wallet_rpc_port+' --wallet-dir '+temp_wallet_dir+' --detach', shell=True)
+wallet_rpc_proc=subprocess.Popen(haven_wallet_rpc_path+' '+haven_wallet_cmd_options+' --password "" --log-level 0 --disable-rpc-login --rpc-bind-ip 127.0.0.1 --rpc-bind-port '+wallet_rpc_port+' --wallet-dir '+temp_wallet_dir, shell=True)
 time.sleep(5)
 
 
@@ -383,20 +383,23 @@ for multisig_txset in multisig_txset_list:
 	print("Signing multisig, RPC response" + str(response.status_code))
 
 	json_obj = json.loads(response.content.decode())
-	tx_data_hex=json_obj['result']['tx_data_hex']
+	if 'result' not in json_obj:
+		print(json_obj['error']['message'])
+	else:	
+		tx_data_hex=json_obj['result']['tx_data_hex']
 
-	data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
-	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+		data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
+		response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
 
-	print('Connect to online daemon')
-	print("RPC return code: "+str(response.status_code))
+		print('Connect to online daemon')
+		print("RPC return code: "+str(response.status_code))
 
-	print('Submitting multisig')
-	data='{"jsonrpc":"2.0","id":"0","method":"submit_multisig","params":{"tx_data_hex":"'+tx_data_hex+'"}}'
-	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
-	print("RPC return code: "+str(response.status_code))
-	json_obj = json.loads(response.content.decode())
-	print(json_obj)
+		print('Submitting multisig')
+		data='{"jsonrpc":"2.0","id":"0","method":"submit_multisig","params":{"tx_data_hex":"'+tx_data_hex+'"}}'
+		response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+		print("RPC return code: "+str(response.status_code))
+		json_obj = json.loads(response.content.decode())
+		print(json_obj)
 		
 
 data = '{"jsonrpc":"2.0","id":"0","method":"stop_wallet"}'
@@ -415,6 +418,16 @@ time.sleep(5)
 ##################### 
 print('popping blocks')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(blocks_at_a_time), shell=True)
+
+
+
+
+
+
+
+
+
+
 
 
 
