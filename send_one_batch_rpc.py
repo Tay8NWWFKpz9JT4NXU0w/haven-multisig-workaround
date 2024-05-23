@@ -572,3 +572,5 @@ time.sleep(5)
 ##################### 
 print('popping blocks')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(blocks_at_a_time), shell=True)
+print('flushing tx pool')
+subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
