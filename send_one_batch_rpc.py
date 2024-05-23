@@ -5,7 +5,7 @@ wallet_1="wallet_1" #Temporary file name of the first multisig wallet.
 wallet_2="wallet_2" #Temporary file name of the second multisig wallet. 
 temp_wallet_1="temp_1" #Temporary file name of the first multisig wallet. 
 temp_wallet_2="temp_2" #Temporary file name of the second multisig wallet. 
-temp_wallet_dir="~/testnet"
+temp_wallet_dir="E:/testnet"
 
 temp_multisig_exp="temp_exp"  #Temporary file name of the multisig info export. It will be created from the first wallet and imported into the second.
 
@@ -16,7 +16,6 @@ temp_multisig_exp="temp_exp"  #Temporary file name of the multisig info export. 
 ##################### 
 
 target_wallet="hvtaJAH6cqjEDBaFSgNDY46bqNGzvWNPxTmm8LQABumWHw6EZKqYhoaBSUbuPfTrsw6sw92XLzmKchJPsCuCjNVY6Y9kmHajER"
-
 ####################
 #Arguments which depend on the environment
 #Paths to havend and haven-wallet-cli
@@ -25,12 +24,12 @@ target_wallet="hvtaJAH6cqjEDBaFSgNDY46bqNGzvWNPxTmm8LQABumWHw6EZKqYhoaBSUbuPfTrs
 #How many spent outputs at a time to freeze (having this number too high might break things, 50 seems to work)
 #RPC ports for the offline daemon and for the online daemon
 ##################### 
-haven_wallet_cli_path="./haven-wallet-cli" #Path to haven-wallet-cli
-haven_wallet_rpc_path="~/testnet/haven-wallet-rpc" #Path to haven-wallet-cli
-havend_path="./havend"
+haven_wallet_cli_path="E:/testnet/haven-wallet-cli.exe" #Path to haven-wallet-cli
+haven_wallet_rpc_path="E:/testnet/haven-wallet-rpc.exe" #Path to haven-wallet-cli
+havend_path="E:/testnet/havend.exe"
 haven_wallet_cmd_options="--testnet" #Daemon must be in offline mode
-blocks_at_a_time=300 #How many blocks to be loaded in the wallets at a time
-havend_path="./havend"
+blocks_at_a_time=500 #How many blocks to be loaded in the wallets at a time
+havend_path="E:/testnet/havend.exe"
 havend_cmd_options="--testnet"
 
 daemon_1_rpc_port='18081' # Offline daemon
@@ -55,7 +54,7 @@ import time
 headers = {'Content-Type': 'application/json',}
 
 ####################
-#Get current block height from the offline daemon
+#Get current block height from offline and online daemon
 ##################### 
 
 print('Get block height for offline daemon')
@@ -64,7 +63,16 @@ response = requests.post('http://127.0.0.1:'+daemon_1_rpc_port+'/json_rpc', head
 print("RPC call status: "+str(response.status_code))
 json_obj = json.loads(response.content.decode())
 height=json_obj['result']['count']
-print(str(height))
+print('Offline daemon block height:' + str(height))
+
+
+print('Get block height for offline daemon')
+data = '{"jsonrpc":"2.0","id":"0","method":"get_block_count"}'
+response = requests.post('http://127.0.0.1:'+daemon_2_rpc_port+'/json_rpc', headers=headers, data=data)
+print("RPC call status: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+online_height=json_obj['result']['count']
+print('Online daemon block height:' + str(online_height))
 ####################
 #Stop Wallet RPC
 #Just in case it is running already
@@ -85,7 +93,7 @@ time.sleep(5)
 ##################### 
 
 
-wallet_rpc_proc=subprocess.Popen(haven_wallet_rpc_path+' '+haven_wallet_cmd_options+' --password "" --log-level 0 --disable-rpc-login --rpc-bind-ip 127.0.0.1 --rpc-bind-port '+wallet_rpc_port+' --wallet-dir '+temp_wallet_dir, shell=True)
+wallet_rpc_proc=subprocess.Popen(haven_wallet_rpc_path+' '+haven_wallet_cmd_options+' --password "" --log-level 0 --disable-rpc-login --rpc-bind-ip 127.0.0.1 --rpc-bind-port '+wallet_rpc_port+' --wallet-dir '+temp_wallet_dir, shell=True, stdout=subprocess.DEVNULL)
 time.sleep(5)
 
 
@@ -150,7 +158,9 @@ print('################')
 
 
 ##Refresh
-refresh_height=int(height)-blocks_at_a_time-60
+refresh_height=int(height)-blocks_at_a_time
+if refresh_height<0:
+    refresh_height=0
 
 data = '{"jsonrpc":"2.0","id":"0","method":"refresh","params":{"start_height":'+str(refresh_height)+'}}'
 response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
@@ -160,6 +170,30 @@ print("RPC return code: "+str(response.status_code))
 json_obj = json.loads(response.content.decode())
 print(json_obj)
 print('################')
+
+
+##Connect to online daemon
+
+data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Connect to offline daemon')
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
+##Refresh
+
+data = '{"jsonrpc":"2.0","id":"0","method":"refresh","params":{"start_height":'+str(online_height-10)+'}}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Refresh from block '+str(refresh_height))
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
 
 
 ####################
@@ -193,6 +227,17 @@ print('################')
 #Refresh height is set to current offline daemon block - blocks_at_a_time - 60
 #The 60 is an overlap, and it is needed to account for the blocks which appear locked
 ##################### 
+
+##Connect to offline daemon
+
+data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_1_rpc_port+'","trusted":true}},'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Connect to offline daemon')
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
 
 
 
@@ -249,6 +294,40 @@ print(json_obj)
 print('################')
 
 
+##Connect to online daemon
+
+data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Connect to offline daemon')
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
+##Refresh
+
+data = '{"jsonrpc":"2.0","id":"0","method":"refresh","params":{"start_height":'+str(online_height-10)+'}}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Refresh from block '+str(refresh_height))
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
+##Connect to offline daemon
+
+data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_1_rpc_port+'","trusted":true}},'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Connect to offline daemon')
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
+
 ####################
 #Import multisig info
 ##################### 
@@ -263,6 +342,27 @@ outputs_loaded=json_obj['result']['n_outputs']
 print('Outputs loaded: '+str(outputs_loaded))
 print('################')
 
+##Connect to online daemon
+
+data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Connect to offline daemon')
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
+
+##Refresh
+
+data = '{"jsonrpc":"2.0","id":"0","method":"refresh","params":{"start_height":'+str(online_height-10)+'}}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print('Refresh from block '+str(refresh_height))
+print("RPC return code: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+print('################')
 
 ####################
 #Freeze spent inputs
@@ -281,12 +381,17 @@ print('Exporting key images ')
 response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
 print("RPC return code: "+str(response.status_code))
 json_obj = json.loads(response.content.decode())
-incoming_transfers=json_obj['result']['transfers']
+if 'transfers' not in json_obj['result']:
+	incoming_transfers=[]
+else:
+	incoming_transfers=json_obj['result']['transfers']
 
 key_images=[]
 for transfer in incoming_transfers:
 	if transfer['unlocked']==True:
 		key_images.append(transfer['key_image'])
+
+print('Number of inputs in unlocked status: ' + str(len(key_images)))
 
 key_images_rpc=','.join('"'+k+'"' for k in key_images)
 
@@ -299,9 +404,11 @@ json_obj = json.loads(response.content.decode())
 
 i=0
 spent_images=[]
-for j in json_obj['spent_status']:
-	i+=j
-	spent_images.append(j)
+if len(key_images)>0:
+	for j in json_obj['spent_status']:
+		i+=j
+		spent_images.append(j)
+
 all_inputs_spent=(i==len(key_images))
 if all_inputs_spent:
 	print('All inputs in the current range were already spent, nothing to do')
@@ -321,7 +428,12 @@ if all_inputs_spent==False:
 data = '{"jsonrpc":"2.0","id":"0","method":"incoming_transfers","params":{"transfer_type":"all"}}'
 response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
 json_obj = json.loads(response.content.decode())
-incoming_transfers=json_obj['result']['transfers']
+
+if 'transfers' not in json_obj['result']:
+	incoming_transfers=[]
+else:
+	incoming_transfers=json_obj['result']['transfers']
+
 
 frozen_count=0
 for transfer in incoming_transfers:
@@ -341,17 +453,18 @@ if all_inputs_spent:
 
 multisig_txset_list=[]
 
+
 for asset_type in asset_types:
 	####################
 	#Create transfer
 	#####################
-	
+	'''
 	data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_1_rpc_port+'","trusted":true}},'
 	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
 	print('################')
 	print('Connect to offline daemon')
 	print("RPC return code: "+str(response.status_code))
-	
+	'''
 	data='{"jsonrpc":"2.0","id":"0","method":"sweep_all","params":{"address":"'+target_wallet+'","asset_type":"'+asset_type+'"}}'
 	#data='{"jsonrpc":"2.0","id":"0","method":"transfer","params":{"destinations":[{"amount":10,"address":"'+target_wallet+'"}],"account_index":0,"subaddr_indices":[0]}}'	
 	print('Creating transactions: ' + data) 	
@@ -364,6 +477,18 @@ for asset_type in asset_types:
 	else:
 		multisig_txset=json_obj['result']['multisig_txset']
 		multisig_txset_list.append(multisig_txset)
+
+####################
+#Save Wallet 2
+##################### 
+
+data = '{"jsonrpc":"2.0","id":"0","method":"store"}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print("Save Wallet 1 RPC code:  " + str(response.status_code))
+print('################')
+
+
 
 data = '{"jsonrpc":"2.0","id":"0","method":"close_wallet"}'
 response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
@@ -383,24 +508,26 @@ for multisig_txset in multisig_txset_list:
 	print("Signing multisig, RPC response" + str(response.status_code))
 
 	json_obj = json.loads(response.content.decode())
-	if 'result' not in json_obj:
-		print(json_obj['error']['message'])
-	else:	
-		tx_data_hex=json_obj['result']['tx_data_hex']
+	tx_data_hex=json_obj['result']['tx_data_hex']
 
-		data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_2_rpc_port+'","trusted":true}},'
-		response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
 
-		print('Connect to online daemon')
-		print("RPC return code: "+str(response.status_code))
+	print('Submitting multisig')
+	data='{"jsonrpc":"2.0","id":"0","method":"submit_multisig","params":{"tx_data_hex":"'+tx_data_hex+'"}}'
+	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+	print("RPC return code: "+str(response.status_code))
+	json_obj = json.loads(response.content.decode())
+	print(json_obj)
 
-		print('Submitting multisig')
-		data='{"jsonrpc":"2.0","id":"0","method":"submit_multisig","params":{"tx_data_hex":"'+tx_data_hex+'"}}'
-		response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
-		print("RPC return code: "+str(response.status_code))
-		json_obj = json.loads(response.content.decode())
-		print(json_obj)
-		
+####################
+#Save Wallet 1
+##################### 
+
+data = '{"jsonrpc":"2.0","id":"0","method":"store"}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+print('################')
+print("Save Wallet 1 RPC code:  " + str(response.status_code))
+print('################')
+	
 
 data = '{"jsonrpc":"2.0","id":"0","method":"stop_wallet"}'
 try:
@@ -418,17 +545,3 @@ time.sleep(5)
 ##################### 
 print('popping blocks')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(blocks_at_a_time), shell=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
