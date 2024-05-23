@@ -508,7 +508,13 @@ for multisig_txset in multisig_txset_list:
 	print("Signing multisig, RPC response" + str(response.status_code))
 
 	json_obj = json.loads(response.content.decode())
-	tx_data_hex=json_obj['result']['tx_data_hex']
+	
+	if 'result' not in json_obj:
+		print(json_obj['error']['message'])
+		tx_data_hex=''
+	else:	
+		tx_data_hex=json_obj['result']['tx_data_hex']
+	
 
 
 	print('Submitting multisig')
