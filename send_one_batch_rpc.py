@@ -37,7 +37,7 @@ daemon_2_rpc_port='27750' # Online daemon
 wallet_rpc_port='14591' # Randon port at which the Wallet RPC is started, feel free to change it
 
 max_pool_size=30 # If more than this number of transactions are in the pool, then exit
-big_conversion_blocks=[62000,61000]
+big_conversion_blocks=[62000,61000] #only these blocks will be processed. they will be the upper range of block chunks of size blocks_at_a_time
 
 ####################
 ####################
