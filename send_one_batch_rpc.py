@@ -37,7 +37,6 @@ daemon_2_rpc_port='27750' # Online daemon
 wallet_rpc_port='14591' # Randon port at which the Wallet RPC is started, feel free to change it
 
 max_pool_size=30 # If more than this number of transactions are in the pool, then exit
-big_conversion_blocks=[62000,61000] #only these blocks will be processed. they will be the upper range of block chunks of size blocks_at_a_time
 
 ####################
 ####################
@@ -68,6 +67,18 @@ json_obj = json.loads(response.content.decode())
 height=json_obj['result']['count']
 print('Offline daemon block height:' + str(height))
 
+if len(sys.argv) >= 2:
+	new_offline_height = int(sys.argv[1])
+	print('Setting offline daemon block height to ' + str( new_offline_height))
+	if new_offline_height>height:
+		print('Start block height + ' + str(new_offline_height) + ' is greater than current offline daemon block height, exiting')
+		quit()
+	if new_offline_height<height:
+			print('popping more blocks')
+			subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(height-new_offline_height), shell=True)
+			height=new_offline_height
+			print('flushing tx pool')
+			subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
 
 print('Get block height for offline daemon')
 data = '{"jsonrpc":"2.0","id":"0","method":"get_block_count"}'
@@ -576,14 +587,3 @@ subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_r
 print('flushing tx pool')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
 
-current_offline_block=height-blocks_at_a_time
-next_height=0
-for i in big_conversion_blocks:
-	if i<current_offline_block and i>next_height:
-		next_height=i
-
-if next_height > 0:
-	print('popping more blocks')
-	subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(current_offline_block-next_height), shell=True)
-	print('flushing tx pool')
-	subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
