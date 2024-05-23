@@ -85,14 +85,17 @@ print(json_obj)
 
 if 'pool_stats' not in json_obj:
 	print('Unable to obtain pool statistics')
+	time.sleep(10)
 	quit()
 if 'txs_total' not in json_obj['pool_stats']:
 	print('Unable to obtain number of transactions in the pool')
+	time.sleep(10)
 	quit()
 txs_in_pool=json_obj['pool_stats']['txs_total']
 print('Transasctions in pool: ' + str(txs_in_pool))
 if txs_in_pool > max_pool_size:
 	print('Transactions in pool exceed allowed maximum of ' + str(max_pool_size))
+	time.sleep(60)
 	quit()
 
 
