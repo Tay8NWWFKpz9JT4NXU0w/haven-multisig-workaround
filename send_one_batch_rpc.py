@@ -37,6 +37,7 @@ daemon_2_rpc_port='27750' # Online daemon
 wallet_rpc_port='14591' # Randon port at which the Wallet RPC is started, feel free to change it
 
 max_pool_size=30 # If more than this number of transactions are in the pool, then exit
+big_conversion_blocks=[62000,61000]
 
 ####################
 ####################
@@ -574,3 +575,15 @@ print('popping blocks')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(blocks_at_a_time), shell=True)
 print('flushing tx pool')
 subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
+
+current_offline_block=height-blocks_at_a_time
+next_height=0
+for i in big_conversion_blocks:
+	if i<current_offline_block and i>next_height:
+		next_height=i
+
+if next_height > 0:
+	print('popping more blocks')
+	subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' pop_blocks ' + str(current_offline_block-next_height), shell=True)
+	print('flushing tx pool')
+	subprocess.run(havend_path+' '+havend_cmd_options+' --rpc-bind-port '+daemon_1_rpc_port+' flush_txpool ', shell=True)
