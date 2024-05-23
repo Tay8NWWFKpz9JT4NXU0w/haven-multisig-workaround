@@ -485,13 +485,7 @@ for asset_type in asset_types:
 	####################
 	#Create transfer
 	#####################
-	'''
-	data = '{"jsonrpc":"2.0","id":"0","method":"set_daemon","params": {"address":"http://localhost:'+daemon_1_rpc_port+'","trusted":true}},'
-	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
-	print('################')
-	print('Connect to offline daemon')
-	print("RPC return code: "+str(response.status_code))
-	'''
+
 	data='{"jsonrpc":"2.0","id":"0","method":"sweep_all","params":{"address":"'+target_wallet+'","asset_type":"'+asset_type+'"}}'
 	#data='{"jsonrpc":"2.0","id":"0","method":"transfer","params":{"destinations":[{"amount":10,"address":"'+target_wallet+'"}],"account_index":0,"subaddr_indices":[0]}}'	
 	print('Creating transactions: ' + data) 	
