@@ -36,6 +36,8 @@ daemon_1_rpc_port='18081' # Offline daemon
 daemon_2_rpc_port='27750' # Online daemon
 wallet_rpc_port='14591' # Randon port at which the Wallet RPC is started, feel free to change it
 
+max_pool_size=30 # If more than this number of transactions are in the pool, then exit
+
 ####################
 ####################
 ####################
@@ -73,6 +75,28 @@ print("RPC call status: "+str(response.status_code))
 json_obj = json.loads(response.content.decode())
 online_height=json_obj['result']['count']
 print('Online daemon block height:' + str(online_height))
+
+print('Check pool')
+data = '{"jsonrpc":"2.0","id":"0"}'
+response = requests.post('http://127.0.0.1:'+daemon_2_rpc_port+'/get_transaction_pool_stats', headers=headers, data=data)
+print("RPC call status: "+str(response.status_code))
+json_obj = json.loads(response.content.decode())
+print(json_obj)
+
+if 'pool_stats' not in json_obj:
+	print('Unable to obtain pool statistics')
+	quit()
+if 'txs_total' not in json_obj['pool_stats']:
+	print('Unable to obtain number of transactions in the pool')
+	quit()
+txs_in_pool=json_obj['pool_stats']['txs_total']
+print('Transasctions in pool: ' + str(txs_in_pool))
+if txs_in_pool > max_pool_size:
+	print('Transactions in pool exceed allowed maximum of ' + str(max_pool_size))
+	quit()
+
+
+
 ####################
 #Stop Wallet RPC
 #Just in case it is running already
