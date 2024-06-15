@@ -427,29 +427,30 @@ else:
 	incoming_transfers=json_obj['result']['transfers']
 
 key_images=[]
+
 for transfer in incoming_transfers:
 	if transfer['unlocked']==True:
 		key_images.append(transfer['key_image'])
 
 print('Number of inputs in unlocked status: ' + str(len(key_images)))
 
-key_images_rpc=','.join('"'+k+'"' for k in key_images)
 
-headers = {'Content-Type': 'application/json',}
-data = '{"key_images":['+key_images_rpc+']}'
-response = requests.post('http://127.0.0.1:'+daemon_2_rpc_port+'/is_key_image_spent', headers=headers, data=data)
-print("RPC call status: "+str(response.status_code))
-
-json_obj = json.loads(response.content.decode())
-
-i=0
+spent_images_count=0
 spent_images=[]
-if len(key_images)>0:
-	for j in json_obj['spent_status']:
-		i+=j
-		spent_images.append(j)
+key_images_chunks=[key_images[i:i+1000] for i in range(0, len(key_images), 1000)]
+for key_image_chunk in key_images_chunks:
+	key_images_rpc=','.join('"'+k+'"' for k in key_image_chunk)
+	headers = {'Content-Type': 'application/json',}
+	data = '{"key_images":['+key_images_rpc+']}'
+	response = requests.post('http://127.0.0.1:'+daemon_2_rpc_port+'/is_key_image_spent', headers=headers, data=data)
+	print("RPC call status: "+str(response.status_code))
+	json_obj = json.loads(response.content.decode())
+	if len(key_image_chunk)>0:
+		for j in json_obj['spent_status']:
+			spent_images_count+=j
+			spent_images.append(j)
 
-all_inputs_spent=(i==len(key_images))
+all_inputs_spent=(spent_images_count==len(key_images))
 if all_inputs_spent:
 	print('All inputs in the current range were already spent, nothing to do')
 
