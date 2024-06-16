@@ -488,7 +488,42 @@ print('Frozen + ' + str(frozen_count) + ' out of ' + str(len(spent_key_images)) 
 #Extract all XHV, XUSD, and XBTC
 ################################
 
-asset_types=['XHV','XUSD','XBTC']
+################################
+#Extract all XHV, XUSD, and XBTC
+################################
+
+biggest_XUSD_key_image=''
+biggest_XUSD_amount=0
+biggest_XBTC_key_image=''
+biggest_XBTC_amount=0
+biggest_XHV_key_image=''
+biggest_XHV_amount=0
+
+
+data = '{"jsonrpc":"2.0","id":"0","method":"incoming_transfers","params":{"transfer_type":"all"}}'
+response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+json_obj = json.loads(response.content.decode())
+
+if 'transfers' not in json_obj['result']:
+	incoming_transfers=[]
+else:
+	incoming_transfers=json_obj['result']['transfers']
+
+for transfer in incoming_transfers:
+	if transfer['frozen']==False and transfer['key_image']!='' and transfer['unlocked']==True:
+		if transfer['asset_type']=='XUSD' and transfer['amount'] > biggest_XUSD_amount:
+			biggest_XUSD_amount=transfer['amount']
+			biggest_XUSD_key_image=transfer['key_image']
+		if transfer['asset_type']=='XBTC' and transfer['amount'] > biggest_XBTC_amount:
+			biggest_XBTC_amount=transfer['amount']
+			biggest_XBTC_key_image=transfer['key_image']
+		if transfer['asset_type']=='XHV' and transfer['amount'] > biggest_XHV_amount:
+			biggest_XHV_amount=transfer['amount']
+			biggest_XHV_key_image=transfer['key_image']
+
+
+#asset_types=['XHV','XUSD','XBTC']
+asset_types=['XUSD','XBTC']
 if all_inputs_spent:
 	asset_types=[]
 
@@ -499,19 +534,27 @@ for asset_type in asset_types:
 	####################
 	#Create transfer
 	#####################
+	key_image=''
+	if asset_type=='XHV':
+		key_image=biggest_XHV_key_image
+	if asset_type=='XUSD':
+		key_image=biggest_XUSD_key_image
+	if asset_type=='XBTC':
+		key_image=biggest_XBTC_key_image
+	
+	if key_image!='':
+		#data='{"jsonrpc":"2.0","id":"0","method":"sweep_all","params":{"address":"'+target_wallet+'","asset_type":"'+asset_type+'"}}'
+		data='{"jsonrpc":"2.0","id":"0","method":"sweep_single","params":{"address":"'+target_wallet+'","key_image":"'+key_image+'"}}'
+		print('Creating transactions: ' + data) 	
+		response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
+		print("RPC return code: "+str(response.status_code))
+		json_obj = json.loads(response.content.decode())	
 
-	data='{"jsonrpc":"2.0","id":"0","method":"sweep_all","params":{"address":"'+target_wallet+'","asset_type":"'+asset_type+'"}}'
-	#data='{"jsonrpc":"2.0","id":"0","method":"transfer","params":{"destinations":[{"amount":10,"address":"'+target_wallet+'"}],"account_index":0,"subaddr_indices":[0]}}'	
-	print('Creating transactions: ' + data) 	
-	response = requests.post('http://127.0.0.1:'+wallet_rpc_port+'/json_rpc',headers=headers, data=data)
-	print("RPC return code: "+str(response.status_code))
-	json_obj = json.loads(response.content.decode())	
-
-	if 'result' not in json_obj:
-		print(json_obj['error']['message'])
-	else:
-		multisig_txset=json_obj['result']['multisig_txset']
-		multisig_txset_list.append(multisig_txset)
+		if 'result' not in json_obj:
+			print(json_obj['error']['message'])
+		else:
+			multisig_txset=json_obj['result']['multisig_txset']
+			multisig_txset_list.append(multisig_txset)
 
 ####################
 #Save Wallet 2
